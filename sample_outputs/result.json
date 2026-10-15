@@ -1,0 +1,133 @@
+{
+  "status": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+  "feasible": true,
+  "optimal": true,
+  "cost": 56.0,
+  "joint_reliability": 0.996005996001,
+  "selected_links": [
+    {
+      "arc": [
+        "A",
+        "B"
+      ],
+      "bandwidth_mhz": 14,
+      "efficiency": 3.6,
+      "capacity_mbps": 50.4,
+      "probability": 0.999,
+      "cost": 14
+    },
+    {
+      "arc": [
+        "B",
+        "D"
+      ],
+      "bandwidth_mhz": 14,
+      "efficiency": 3.6,
+      "capacity_mbps": 50.4,
+      "probability": 0.999,
+      "cost": 14
+    },
+    {
+      "arc": [
+        "A",
+        "C"
+      ],
+      "bandwidth_mhz": 14,
+      "efficiency": 3.6,
+      "capacity_mbps": 50.4,
+      "probability": 0.999,
+      "cost": 14
+    },
+    {
+      "arc": [
+        "C",
+        "D"
+      ],
+      "bandwidth_mhz": 14,
+      "efficiency": 3.6,
+      "capacity_mbps": 50.4,
+      "probability": 0.999,
+      "cost": 14
+    }
+  ],
+  "flows": [
+    {
+      "failure": "none",
+      "demand": 0,
+      "arc": [
+        "A",
+        "B"
+      ],
+      "mbps": 15.0
+    },
+    {
+      "failure": "none",
+      "demand": 0,
+      "arc": [
+        "B",
+        "D"
+      ],
+      "mbps": 15.0
+    },
+    {
+      "failure": "none",
+      "demand": 0,
+      "arc": [
+        "A",
+        "C"
+      ],
+      "mbps": 15.0
+    },
+    {
+      "failure": "none",
+      "demand": 0,
+      "arc": [
+        "C",
+        "D"
+      ],
+      "mbps": 15.0
+    },
+    {
+      "failure": "B",
+      "demand": 0,
+      "arc": [
+        "A",
+        "C"
+      ],
+      "mbps": 30.0
+    },
+    {
+      "failure": "B",
+      "demand": 0,
+      "arc": [
+        "C",
+        "D"
+      ],
+      "mbps": 30.0
+    },
+    {
+      "failure": "C",
+      "demand": 0,
+      "arc": [
+        "A",
+        "B"
+      ],
+      "mbps": 30.0
+    },
+    {
+      "failure": "C",
+      "demand": 0,
+      "arc": [
+        "B",
+        "D"
+      ],
+      "mbps": 30.0
+    }
+  ],
+  "scenarios": [
+    "none",
+    "B",
+    "C"
+  ],
+  "mip_gap": 0.0
+}
