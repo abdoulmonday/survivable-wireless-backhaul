@@ -1,69 +1,100 @@
-# Survivable Wireless Backhaul — MILP and Classical Benders (v0.2)
+# Survivable Wireless Backhaul Network Optimization (v0.3)
 
-A research-oriented Python implementation of reliability-aware, survivable wireless backhaul capacity planning, **inspired by** Raayatpanah et al. (2023).
+**Research-oriented Python project:** mixed-integer programming, classical Benders feasibility cuts, and capacity cutset-inequality acceleration for resilient wireless backhaul planning.
 
-> **Scope:** This is an independent educational reconstruction for small synthetic networks. It implements the deterministic-equivalent monolithic MILP and **classical Benders feasibility-cut decomposition with an elastic LP oracle**. It does **not** reproduce the accelerated Benders method of the paper, its SNDlib experiments, or measured radio-channel probabilities.
+> **Scientific scope:** independent educational reimplementation inspired by the cited paper, on **synthetic small networks**. This is **not** an official implementation of the authors' accelerated Benders algorithm or a replication of the SNDlib benchmarks. Our cutset separation exhaustively enumerates subsets on small networks; it is not suitable for large networks.
 
-## Quick start
+## Scientific paper / Article de référence
 
-```bash
-python -m venv .venv
-# Linux/macOS: source .venv/bin/activate
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install -e '.[dev]'
-python -m pytest -q
-python -m backhaul.demo
+**Raayatpanah, M. A., Beheshtkhah, M. K., Eshghi, F., Kelarestaghi, M., & Nepomuceno, N. (2023).** *Design of survivable wireless backhaul networks with reliability considerations*. **Computers & Operations Research**, **151**, article **106120**.
+
+- DOI: **[10.1016/j.cor.2022.106120](https://doi.org/10.1016/j.cor.2022.106120)**
+- Journal: *Computers & Operations Research* (Elsevier)
+- Relevant material: Section 4 (mathematical formulation, especially Eq. 5); Section 5 (Benders and valid inequalities); Section 6 (computational experiments).
+
+**What this project reproduces conceptually:** a deterministic-equivalent survivable wireless-backhaul capacity-design MILP, node-failure flow recourse, log-linear independent-link reliability, and feasibility-cut decomposition.
+
+**What is our own educational extension:** enumerated necessary directed cutset capacity inequalities for speeding up feasibility-cut Benders on small networks. **What is not reproduced:** the complete accelerated algorithm in the paper, its separation ILP, initialization heuristic, extreme-ray implementation, radio probability estimation and published benchmarks. Cite the paper for the scientific formulation, *not* for performance figures obtained in this repository.
+
+### BibTeX
+
+```bibtex
+@article{raayatpanah2023survivable,
+  title={Design of survivable wireless backhaul networks with reliability considerations},
+  author={Raayatpanah, Mohammad Ali and Beheshtkhah, Mahdi Kabiri and Eshghi, Farshad and Kelarestaghi, Manoochehr and Nepomuceno, Napole\~ao},
+  journal={Computers \& Operations Research},
+  volume={151},
+  pages={106120},
+  year={2023},
+  doi={10.1016/j.cor.2022.106120}
+}
 ```
 
-The comparison results are saved in `outputs/comparison.json`.
+## Setup (Windows PowerShell)
 
-## Method
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+python -m pytest -v
+python -m backhaul.demo
+python -m backhaul.benchmark
+```
 
-Each directed edge is configured with at most one radio option with a bandwidth, spectral efficiency, cumulative reliability probability, and cost. Each communication demand is routed as a divisible commodity, potentially with different flows in every node-failure scenario. The MILP minimizes cost and enforces:
+On Linux/macOS use `python3 -m venv .venv; source .venv/bin/activate` and the same remaining commands. The optional benchmark outputs `outputs/benchmark.json`, a **single-run demonstration, not a rigorous speed-up study**.
 
-1. Flow balance for intact network and each protected relay failure.
-2. Limits on each flow and each intermediate node's total outgoing flow in the no-failure scenario (`sigma`).
-3. Aggregate installed link capacity constraints for each scenario.
-4. `sum(log(rho) * y) >= log(1-epsilon)`, under independent link fading.
-5. At most one radio configuration per directed edge.
+## Three versions / Trois étapes
 
-**Master:** integer radio selections `y`, plus reliability and feasibility cuts.
+| Version | Main implementation | Purpose |
+|---|---|---|
+| 0.1 | Direct MILP | Baseline flow-routing and radio-design optimization |
+| 0.2 | Classical Benders | Separate binary design (master) and continuous flow-feasibility (LP oracle) |
+| 0.3 | Cutset-enhanced Benders | Add necessary capacity cuts before expensive flow checks |
 
-**Feasibility oracle:** solve the LP `min sum(abs(flow-balance residuals)) + sum(capacity/diversification violations)` for fixed `y` using nonnegative artificial variables. Its optimal value `theta(y)` is zero iff the flow problem is feasible. Dual marginals give a globally valid affine under-estimator `theta(y) >= theta(yhat)+g·(y-yhat)`; therefore, all feasible designs satisfy `g·y <= g·yhat-theta(yhat)`. This is the cut added to the master.
+## Mathematics (simplified)
 
-The *exact mathematical cut* depends on the LP relaxation used, and this implementation differs from the explicit extreme-ray Benders subproblem presented as Eq. (7) and (8) in the article. Both are valid feasibility-cut mechanisms.
+For each directed arc `(u,v)` and radio choice `j`, the binary variable `y[e,j]` selects capacity `B[e,j]` at cost `c[e,j]`. Flows `x[h,k,e] >= 0` route a demand `k` under failure scenario `h`.
 
-## Repository
+Minimize `sum c[e,j] y[e,j]` under flow balance, per-scenario capacity, diversity limits, radio-choice constraints, and independent-fading chance constraint `sum log(rho[e,j]) y[e,j] >= log(1-epsilon)`.
+
+For each scenario `h` and nonempty strict set of surviving nodes `S`, the necessary directed cutset condition is:
+
+`sum_{e=(u,v): u in S, v outside S} sum_j B[e,j] y[e,j] >= sum_{k: source in S, target outside S} alpha[h,k] d[k]`.
+
+It is **necessary but not sufficient** for multicommodity flow feasibility. This is why the LP oracle is still required even after all cutset checks pass.
+
+## Files
 
 ```text
-src/backhaul/model.py        Problem data, baseline monolithic MILP, master model
-src/backhaul/benders.py      Elastic feasibility LP and Benders cuts
-src/backhaul/demo.py         Comparison script for a 4-node synthetic network
-tests/test_benders.py        Benders/MILP agreement + feasibility tests
-docs/benders_walkthrough.md  Equations and a step-by-step algorithm
-.github/workflows/tests.yml Test workflow
+src/backhaul/model.py       Data classes, Instance, master, monolithic MILP
+src/backhaul/benders.py     Elastic flow LP, dual feasibility cuts
+src/backhaul/cutsets.py     Directed cutset enumeration and separation
+src/backhaul/accelerated.py Cutset-enhanced Benders implementation
+src/backhaul/demo.py        4-node synthetic baseline and solver comparison
+src/backhaul/benchmark.py   Small illustrative timing comparison
+tests/test_benders.py       Baseline solver agreement and validity tests
+tests/test_cutsets.py       Cutset and accelerated solver tests
+docs/benders_walkthrough.md Mathematical introduction
+docs/defense_guide.md        Detailed v0.1–v0.3 learning and jury Q&A
+.github/workflows/tests.yml Automated testing
 ```
 
-## Demonstration (synthetic data)
+## Results and limitations
 
-For the four-node toy network with a single demand A→D (30 Mbit/s), protection against relay B and relay C failures, `sigma=0.5`, `alpha=1.0`, and `epsilon=0.05`, both approaches found a cost of 56 arbitrary units. Classical Benders converged in 63 master iterations with the included options and constraints. Results may vary with versions or numerical tolerances.
+On the synthetic 4-node demo, direct MILP, classical Benders, and cutset-enhanced Benders should find the same optimal provisioning cost, subject to solver termination. `solve_accelerated` reports cutset cuts, Benders cuts, iterations, and oracle calls. No universal speed advantage is claimed: small-instance runtime is noisy, and exhaustive subset enumeration scales exponentially with node count.
 
-These figures are not results from the article. `rho` values are illustrative inputs, not measured network availability.
+Assumptions include independent fading; fractional multicommodity flows; deterministic demand; independently reassigned routing in failure scenarios; one relay failure at a time; assumed (not measured) link reliability; no spectrum/interference or propagation simulation.
 
 ## Research roadmap
 
-- [x] Formulate monolithic deterministic-equivalent MILP.
-- [x] Implement classical feasibility-cut Benders decomposition.
-- [x] Cross-check objective with monolithic MILP on synthetic cases.
-- [ ] Profile MILP vs Benders over multiple graph sizes and demands.
-- [ ] Reproduce the paper's extreme-ray dual cuts, cutset inequalities, warm starts, and upper-bound heuristic.
-- [ ] Import benchmark SNDlib graphs; document link-specific options and probability distributions.
-- [ ] Study correlated fading and larger simultaneous failures.
+- [x] Monolithic MILP, classical Benders, and small-instance cutset-enhanced Benders
+- [x] Automated tests and transparent scientific attribution
+- [ ] Multiseed, multisize benchmarking with machine/solver/version metadata
+- [ ] Polynomial-time special-case separation and the paper's separation MILP / stronger inequalities
+- [ ] Improved Benders initial solution, heuristic bounds, and extreme-ray cuts
+- [ ] Import SNDlib topologies and reproduce comparable experimental settings
+- [ ] Investigate correlated weather fades, multiple failures and uncertainty calibration
 
-## Limitations
+## License
 
-Assumes independent fading between selected links, fractional multicommodity flows, static demand rates, one failed relay at a time, no detailed spectrum-interference model, and user-supplied link reliability probabilities. A joint reliability probability is not an empirical uptime estimate. For larger instances the educational Benders implementation may perform worse than direct MILP; no speed-up is claimed.
-
-## Citation
-
-Raayatpanah, M. A., Beheshtkhah, M. K., Eshghi, F., Kelarestaghi, M., & Nepomuceno, N. (2023). *Design of survivable wireless backhaul networks with reliability considerations*. Computers & Operations Research, 151, 106120. https://doi.org/10.1016/j.cor.2022.106120
+MIT for independently authored code; the referenced article is not redistributed by this repository.
